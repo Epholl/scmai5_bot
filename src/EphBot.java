@@ -1,7 +1,5 @@
 import bwapi.*;
 import bwapi.Flag.Enum;
-import bwta.BWTA;
-import bwta.BaseLocation;
 
 import java.util.*;
 
@@ -21,10 +19,14 @@ public class EphBot extends DefaultBWListener {
 
     public UnitGroup templars;
 
+    public List<Unit> enemyUnits = new ArrayList<>();
+
     public ArmyMoveManager moveManager;
     public LocationManager locationManager;
+    public FightManager fightManager;
 
     public List<UnitGroup> allGroups = new ArrayList<>();
+    public List<Agent> agents = new ArrayList<>();
 
     Random r = new Random();
 
@@ -45,34 +47,71 @@ public class EphBot extends DefaultBWListener {
         self = game.self();
         game.enableFlag(Enum.UserInput.getValue());
 
+        for (Player pl : game.getPlayers()) {
+            if (pl.equals(self)) {
+                continue;
+            }
+        }
+
         allUnits = new UnitGroup(self.getUnits());
         zealots = new UnitGroup(new ArrayList<Unit>());
         dragoons = new UnitGroup(new ArrayList<Unit>());
         templars = new UnitGroup(new ArrayList<Unit>());
         moveManager = new ArmyMoveManager();
         locationManager = new LocationManager();
+        fightManager = new FightManager();
     }
 
     @Override
     public void onFrame() {
-        debugDraw();
+        //debugDraw();
 
-        moveManager.update(game.getFrameCount());
+        if (fightManager.fighting()) {
 
+            fightManager.update();
+
+        } else {
+            fightManager.state = FightManager.NOTHING;
+
+            if (enemyLosses > 1400){
+                for (Unit u: allUnits.units) {
+                    if (u.isIdle()) {
+                        u.attack(moveManager.getRandomPosition());
+                    }
+                }
+            } else {
+                moveManager.update(game.getFrameCount());
+            }
+        }
     }
 
+    public boolean isEnemyVisible() {
+        for (Unit u: enemyUnits) {
+            if (u.isVisible()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public Unit getEnemyUnit() {
+        for (Unit u: enemyUnits) {
+            if (u.isVisible()) {
+                return u;
+            }
+        }
+        return null;
+    }
+
+    public int myLosses = 0;
+    public int enemyLosses = 0;
     public List<Position> calcPositions = new ArrayList<>();
     private void debugDraw() {
-        game.drawTextScreen(50, 25, "Movemanager updated: " + moveManager.lastCommandFrame);
+        game.drawTextScreen(50, 25, "FC: " + game.getFrameCount());
 
         game.drawCircleMap(allUnits.getMeanPosition(), 10, Color.White, false);
         game.drawTextMap(allUnits.getMeanPosition(), "" + allUnits.getDispersion());
-        game.drawCircleMap(zealots.getMeanPosition(), 10, Color.White, false);
-        game.drawTextMap(zealots.getMeanPosition(), "" + allUnits.getDispersion());
-        game.drawCircleMap(dragoons.getMeanPosition(), 10, Color.White, false);
-        game.drawTextMap(dragoons.getMeanPosition(), "" + allUnits.getDispersion());
-        game.drawCircleMap(templars.getMeanPosition(), 10, Color.White, false);
-        game.drawTextMap(templars.getMeanPosition(), "" + allUnits.getDispersion());
 
         for (Unit u: self.getUnits()) {
             game.drawTextMap(u.getPosition(), u.getPosition().toString());
@@ -95,38 +134,32 @@ public class EphBot extends DefaultBWListener {
         }
 
         game.drawLineMap(moveManager.getNextPosition(), allUnits.getMeanPosition(), Color.Blue);
-
-        for (Position p: moveManager.destinations) {
-
-            game.drawCircleMap(p, 8, Color.Red);
-        }
-
-        for (int i = 0; i < calcPositions.size(); i+= 4) {
-            Position start = calcPositions.get(i);
-            Position first = calcPositions.get(i+1);
-            Position second = calcPositions.get(i+2);
-            Position third = calcPositions.get(i+3);
-
-            game.drawCircleMap(start, 8, Color.Green, true);
-            game.drawLineMap(first, second, Color.Green);
-            game.drawLineMap(first, third, Color.Green);
-            game.drawLineMap(third, second, Color.Cyan);
-        }
     }
 
     @Override
     public void onUnitDestroy(Unit unit) {
         super.onUnitDestroy(unit);
-        for (UnitGroup g: allGroups) {
-            for (Iterator<Unit> iterator = g.units.iterator(); iterator.hasNext();) {
+
+        if (unit.getPlayer().equals(self)) {
+            myLosses += getUnitPrice(unit);
+            for (UnitGroup g: allGroups) {
+                for (Iterator<Unit> iterator = g.units.iterator(); iterator.hasNext();) {
+                    Unit u = iterator.next();
+                    if (u.getID() == unit.getID()) {
+                        iterator.remove();
+                    }
+                }
+            }
+        }
+
+        else {
+            for (Iterator<Unit> iterator = enemyUnits.iterator(); iterator.hasNext();) {
                 Unit u = iterator.next();
                 if (u.getID() == unit.getID()) {
                     iterator.remove();
                 }
             }
-            if (g.units.size() <= 0) {
-                allGroups.remove(g);
-            }
+            enemyLosses += getUnitPrice(unit);
         }
     }
 
@@ -141,11 +174,20 @@ public class EphBot extends DefaultBWListener {
                 dragoons.units.add(unit);
             } else if (unit.getType() == UnitType.Protoss_High_Templar) {
                 templars.units.add(unit);
+                agents.add(new TemplarManager(unit));
+            } else if (unit.getType() == UnitType.Protoss_Archon) {
+                zealots.units.add(unit);
             }
+        } else {
+            enemyUnits.add(unit);
         }
     }
 
     public static void main(String[] args) {
         new EphBot().run();
+    }
+
+    private int getUnitPrice(Unit u) {
+        return u.getType().mineralPrice() + u.getType().gasPrice();
     }
 }

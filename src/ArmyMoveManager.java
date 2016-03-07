@@ -25,21 +25,31 @@ public class ArmyMoveManager {
         B.mm = this;
     }
 
+    public boolean waiting = false;
+    public boolean enough = false;
     public void update(int frameCount) {
 
-        if (allUnits.getIdleIndex() > 0.1) {
+        if (frameCount > 820) {
+            enough = true;
+        }
+
+        if (allUnits.getIdleIndex() > 0.75 || (allUnits.getDispersion() < 90 && B.b.myLosses == 0)) {
             lastCommandFrame = frameCount;
             Position newPos = getNextPosition();
-            Position curPos = allUnits.getMeanPosition();
-            if (allUnits.getDispersion() > 100) {
 
-                zealots.lineFormation(curPos, newPos, 30, 10);
-                dragoons.lineFormation(curPos, newPos, 0, 20);
-                templars.lineFormation(curPos, newPos, -40, 100);
+            if (!enough && frameCount > 120) {
+                if (!waiting) {
+                    moveFormation(newPos, 180, 1.9);
+                    waiting = true;
+                } else {
+                    return;
+                }
             } else {
-
-                allUnits.moveByOffset(curPos, newPos, 200);
+                moveFormation(newPos, 130);
             }
+
+
+
         }
 
         if (allUnits.getMeanPosition().getApproxDistance(getNextPosition()) < 200) {
@@ -47,15 +57,35 @@ public class ArmyMoveManager {
         }
     }
 
+    public void moveFormation(Position newPos, int distance) {
+        moveFormation(newPos, distance, 1.0);
+    }
+
+    public void moveFormation(Position newPos, int distance, double spreadMultiplyer) {
+        Position curPos = allUnits.getMeanPosition();
+
+        if (zealots.hasUnits()) {
+            zealots.lineFormation(curPos, newPos, 105 + distance, 30 * spreadMultiplyer);
+        }
+
+        if (dragoons.hasUnits()) {
+            dragoons.lineFormation(curPos, newPos, 60 + distance, 30 * spreadMultiplyer);
+        }
+
+        if (templars.hasUnits()) {
+            templars.lineFormation(curPos, newPos, distance, 100 * spreadMultiplyer);
+        }
+    }
+
     public Position getNextPosition() {
         if (destinations.isEmpty()) {
-            Position destination = getRandomPosition();
-            B.lm.generateMovementPositions(allUnits.getMeanPosition(), destination, destinations);
+            Position destination = B.lm.getNextPosition();
+            destinations.add(destination);//B.lm.generateMovementPositions(allUnits.getMeanPosition(), destination, destinations);
         }
         return destinations.getFirst();
     }
 
-    private Position getRandomPosition() {
-        return new Position(random.nextInt(4000), random.nextInt(1000));
+    public Position getRandomPosition() {
+        return new Position(random.nextInt(4000), random.nextInt(2000));
     }
 }

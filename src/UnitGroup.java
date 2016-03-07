@@ -15,7 +15,15 @@ public class UnitGroup {
         B.b.allGroups.add(this);
     }
 
+    public boolean hasUnits() {
+        return !units.isEmpty();
+    }
+
     public Position getMeanPosition() {
+        if (units.isEmpty()) {
+            return Position.None;
+        }
+
         int sumX = 0;
         int sumY = 0;
 

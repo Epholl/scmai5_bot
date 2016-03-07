@@ -13,7 +13,57 @@ public class LocationManager {
 
     public LocationManager() {
         B.lm = this;
+        if (isArmyPositionRight()) {
+            movementPositions = movementPositionRight;
+        } else {
+            movementPositions = movementPositionsLeft;
+        }
     }
+
+    public static final Position[] movementPositionsLeft = {
+            new Position(900, 500),
+            new Position(1500, 600),
+            new Position(2600, 600),
+            new Position(3200, 500),
+            new Position(2250, 1580),
+            new Position(1830, 1580),
+            new Position(720, 500),
+            new Position(3220, 460)
+
+    };
+
+    public static final Position[] movementPositionRight = {
+            new Position(3200, 500),
+            new Position(2600, 650),
+            new Position(1500, 650),
+            new Position(900, 500),
+            new Position(1830, 1580),
+            new Position(2250, 1580),
+            new Position(3420, 500),
+            new Position(820, 460)
+    };
+
+    public int movementIndex = 0;
+    public Position[] movementPositions;
+
+    public Position getNextPosition() {
+        return movementPositions[movementIndex++ % movementPositions.length];
+    }
+
+    public boolean isArmyPositionRight() {
+        return B.b.allUnits.getMeanPosition().getX() > 2000;
+    }
+
+
+
+
+
+
+
+
+
+
+
 
     public void generateMovementPositions(Position start, Position target, List<Position> list) {
         B.b.calcPositions.clear();
@@ -25,6 +75,8 @@ public class LocationManager {
 
         int firstTargetDistance = first.getApproxDistance(target);
         int secondTargetDistance = second.getApproxDistance(target);
+
+
 
         Vector2 next;
         while (firstTargetDistance - secondTargetDistance > 20 ) {

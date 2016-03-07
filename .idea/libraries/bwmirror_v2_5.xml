@@ -4,6 +4,11 @@
       <root url="jar://$PROJECT_DIR$/lib/bwmirror_v2_5.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <NATIVE>
+      <root url="file://$PROJECT_DIR$/../bwu2-master" />
+    </NATIVE>
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/../bwu2-master/src" />
+    </SOURCES>
   </library>
 </component>
